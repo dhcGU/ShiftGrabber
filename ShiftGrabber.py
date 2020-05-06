@@ -5,10 +5,15 @@ import os
 from dotenv import load_dotenv
 import threading
 import re
+from twilio.rest import Client
 
 load_dotenv()
 GROUPME_API_KEY = os.environ.get("GROUPME_API_KEY", "Need enviornment variable GROUPME_API_KEY")
 GROUP_ID = os.environ.get("GROUP_ID", "Need environment variable GROUP_ID")
+TWILIO_SID = os.environ.get("TWILIO_SID","Need environment variable TWILIO_ID")
+AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "Need environment variable AUTH_TOKEN (twilio auth token)")
+TO_NUMBER = os.environ.get("TO_NUMBER", "Need environment variable TO_NUMBER (your phone number)")
+FROM_NUMBER = os.environ.get("FROM_NUMBER", "Need environmnet variable FROM_NUMBER (Twilio phone number)")
 
 user_id = 28092669
 #"Test" group is is 59490587
@@ -27,13 +32,18 @@ def parse_response_thread(response, schedule):
             for key in schedule.keys():
                 if(key in text):
                     if("".join(time.group().split()) in schedule[key]):
-                        message_group("Yea I'll take it", GROUP_ID, GROUPME_API_KEY)
-            
+                        message_group(f"@{get_groupme_sender_name(response)} Yea I'll take it", GROUP_ID, GROUPME_API_KEY)
+                        content = f"ShiftGrabber picked up shift on {key} from {time.group()}"
+                        client.messages.create(to = TO_NUMBER, from_ = FROM_NUMBER, body = content)
+
 def get_groupme_text(respone):
     return json.loads(response.text)[1]["data"]["subject"]["text"]
 
 def get_groupme_groupid(response):
     return json.loads(response.text)[1]["data"]["subject"]["group_id"]
+
+def get_groupme_sender_name(response):
+    return json.loads(response.text)[1]['data']['subject']['name']
 
 def setup_connection(id, url):
     id = 1
@@ -81,6 +91,9 @@ url = "https://push.groupme.com/faye"
 print("Please enter your availability as a comma separated list  of 4 hour blocks in Military Time")
 print("ie. if available from 8:00AM-12:00PM and 4:00PM-Midnight, enter '8:00-12:00, 16:00-20:00, 20:00-2400'")
 user_schedule = get_schedule()
+
+client = Client(TWILIO_SID, AUTH_TOKEN)
+
 id = 0
 client_id =setup_connection(id, url)
 while True:
